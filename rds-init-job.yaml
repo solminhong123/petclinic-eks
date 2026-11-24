@@ -1,0 +1,34 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rds-init
+  namespace: petclinic
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: init
+        image: mysql:8.4
+        envFrom:
+        - secretRef:
+            name: db-secret
+        env:
+        - name: DB_HOST
+          value: RDS_ENDPOINT
+        command: ["sh", "-c"]
+        args:
+        - |
+          set -e
+          mysql -h "$DB_HOST" -uadmin -p"$MYSQL_ROOT_PASSWORD" < /init/01-schema.sql
+          mysql -h "$DB_HOST" -uadmin -p"$MYSQL_ROOT_PASSWORD" -e "CREATE USER IF NOT EXISTS 'petclinic_app'@'%' IDENTIFIED BY '${APP_DB_PASSWORD}'; GRANT SELECT, INSERT, UPDATE, DELETE ON petclinic.* TO 'petclinic_app'@'%';"
+          mysql -h "$DB_HOST" -uadmin -p"$MYSQL_ROOT_PASSWORD" -e "SELECT VERSION(), @@character_set_server; SHOW TABLES FROM petclinic; SHOW GRANTS FOR 'petclinic_app'@'%';"
+        volumeMounts:
+        - name: init
+          mountPath: /init
+          readOnly: true
+      volumes:
+      - name: init
+        configMap:
+          name: db-init
