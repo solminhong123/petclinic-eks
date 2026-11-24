@@ -35,7 +35,10 @@ spec:
       initContainers:
       - name: wait-db
         image: busybox:1.37
-        command: ["sh", "-c", "until nc -z db 3306; do echo waiting for db; sleep 2; done"]
+        envFrom:
+        - configMapRef:
+            name: was-config
+        command: ["sh", "-c", "until nc -z $DB_HOST $DB_PORT; do echo waiting for $DB_HOST; sleep 2; done"]
       containers:
       - name: was
         image: ACCOUNT_ID.dkr.ecr.ap-northeast-2.amazonaws.com/petclinic-was:1.0
